@@ -5,7 +5,7 @@ import sys
 from PyQt5.QtWidgets import QWidget, QDesktopWidget, QMainWindow, QAction, QInputDialog, QFileDialog
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QGridLayout, QSizePolicy
 from PyQt5.QtWidgets import QPushButton, QLabel, QScrollArea
-from PyQt5.QtGui import QIcon, QImage, QPixmap, QPainter, QColor, QPen
+from PyQt5.QtGui import QIcon, QImage, QPixmap, QPainter, QColor, QPen, QFont
 from PyQt5.QtCore import Qt, QPointF, QRect
 
 import os
@@ -65,14 +65,40 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.main_wid)
 
         # buttons
-        self.yes_button = QPushButton('是')
-        self.no_button = QPushButton('不是')
+        button_font = QFont('Roman times', 16)
+        self.yes_button = QPushButton('是他')
+        self.yes_button.setFont(button_font)
+        self.yes_button.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        self.yes_button.setEnabled(False)
+        self.yes_button.setStyleSheet('background-color: green')
+        self.yes_button.setStatusTip('是左边选中的这个演员')
+        self.no_button = QPushButton('不是他')
+        self.no_button.setFont(button_font)
+        self.no_button.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        self.no_button.setEnabled(False)
+        self.no_button.setStyleSheet('background-color: orange')
+        self.no_button.setStatusTip('不是左边选中的这个演员')
         self.others_button = QPushButton('不是主演')
+        self.others_button.setFont(button_font)
+        self.others_button.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        self.others_button.setEnabled(False)
+        self.others_button.setStyleSheet('background-color: red')
+        self.others_button.setStatusTip('不是左边所有演员中的任何一个')
         self.invalid_button = QPushButton('框不明确')
+        self.invalid_button.setFont(button_font)
+        self.invalid_button.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        self.invalid_button.setEnabled(False)
+        self.invalid_button.setStatusTip('框的不好，不知道框的是指哪个人')
         self.yes_button.clicked.connect(self.yes_button_clicked)
         self.no_button.clicked.connect(self.no_button_clicked)
         self.others_button.clicked.connect(self.others_button_clicked)
         self.invalid_button.clicked.connect(self.invalid_button_clicked)
+
+        # status label
+        self.status_label = QLabel()
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setFont(QFont('Roman times', 13))
+        self.status_label.setText('已完成： */*')
 
         # cast window
         self.cast_wid = CastWindow(self)
@@ -95,19 +121,28 @@ class MainWindow(QMainWindow):
 
         # layout
         self.button_layout = QHBoxLayout()
+        self.button_layout.addStretch(2)
+        self.button_layout.addWidget(self.status_label, 6)
+        self.button_layout.addStretch(4)
+        self.button_layout.addWidget(self.yes_button, 6)
         self.button_layout.addStretch(1)
-        self.button_layout.addWidget(self.yes_button)
-        self.button_layout.addWidget(self.no_button)
-        self.button_layout.addWidget(self.others_button)
-        self.button_layout.addWidget(self.invalid_button)
+        self.button_layout.addWidget(self.no_button, 6)
+        self.button_layout.addStretch(1)
+        self.button_layout.addWidget(self.others_button, 6)
+        self.button_layout.addStretch(1)
+        self.button_layout.addWidget(self.invalid_button, 4)
+        self.button_layout.addStretch(1)
 
         self.img_layout = QHBoxLayout()
-        self.img_layout.addWidget(self.cast_scroll, 1)
-        self.img_layout.addWidget(self.proposal_scroll, 5)
+        self.img_layout.addWidget(self.cast_scroll, 9)
+        self.img_layout.addStretch(1)
+        self.img_layout.addWidget(self.proposal_scroll, 50)
 
         self.main_layout = QVBoxLayout()
-        self.main_layout.addLayout(self.img_layout)
-        self.main_layout.addLayout(self.button_layout)
+        self.main_layout.addLayout(self.img_layout, 48)
+        self.main_layout.addStretch(1)
+        self.main_layout.addLayout(self.button_layout, 4)
+        self.main_layout.addStretch(1)
 
         # initial action
         self.main_wid.setLayout(self.main_layout)
@@ -138,6 +173,11 @@ class MainWindow(QMainWindow):
         self.update_cast()
         # init proposal
         self.update_proposal()
+        # set button enable
+        self.yes_button.setEnabled(True)
+        self.no_button.setEnabled(True)
+        self.others_button.setEnabled(True)
+        self.invalid_button.setEnabled(True)
 
         self.update()
 
@@ -160,6 +200,9 @@ class MainWindow(QMainWindow):
         img_list, bbox_list = self.proposal2info(
             self.proposal_list, osp.join(self.package_dir, 'Image'))
         self.proposal_wid.update_proposal(img_list, bbox_list)
+        # update status label
+        status_label_text = '已完成： {:d} / {:d}'.format(proposal_result['num_labeled'], proposal_result['num_proposal'])
+        self.status_label.setText(status_label_text)
 
     # key and button event
     def keyPressEvent(self, e):

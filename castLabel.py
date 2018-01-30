@@ -60,7 +60,7 @@ class CastLabel(QWidget):
 
         # -- draw rect
         if self.isSelected:
-            painter.setPen(QPen(QColor(200, 0, 0), 12))
+            painter.setPen(QPen(QColor(200, 0, 0), 18))
             painter.drawRect(self.rect())
 
         painter.end()

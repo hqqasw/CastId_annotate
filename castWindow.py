@@ -61,5 +61,4 @@ class CastWindow(QWidget):
         for i in range(self.cast_num):
             if self.cast_labels[i].isSelected:
                 sidx = i
-        print('cast:', sidx)
         return sidx

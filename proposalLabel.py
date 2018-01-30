@@ -45,7 +45,7 @@ class ProposalLabel(QWidget):
         if bbox is not None:
             rectpainter = QPainter()
             rectpainter.begin(qimg)
-            rectpainter.setPen(QPen(QColor(0, 200, 0), 6))
+            rectpainter.setPen(QPen(QColor(0, 200, 0), 8))
             rectpainter.drawRect(bbox)
             rectpainter.end()
             # TODO: draw bbox
@@ -66,7 +66,7 @@ class ProposalLabel(QWidget):
         painter.drawPixmap(self.rect(), self.pixmap)
         # -- draw rect
         if self.isSelected:
-            painter.setPen(QPen(QColor(200, 0, 0), 12))
+            painter.setPen(QPen(QColor(200, 0, 0), 15))
             painter.drawRect(self.rect())
 
         painter.end()
