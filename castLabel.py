@@ -3,7 +3,7 @@
 
 import sys
 from PyQt5.QtWidgets import QWidget, QDesktopWidget, QMainWindow, QAction, QInputDialog, QFileDialog
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QGridLayout, QSizePolicy
+from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QGridLayout, QSizePolicy, QMessageBox
 from PyQt5.QtWidgets import QPushButton, QLabel, QScrollArea
 from PyQt5.QtGui import QIcon, QImage, QPixmap, QPainter, QColor, QPen
 from PyQt5.QtCore import Qt, QPointF, QRect
@@ -72,5 +72,13 @@ class CastLabel(QWidget):
             self.isSelected = True
             self.update()
             self.parent.seletected_changed()
+        elif e.button() == Qt.RightButton:
+            msg = QMessageBox(
+                QMessageBox.Information,
+                'Image', '',
+                buttons = QMessageBox.Ok, parent=self
+            )
+            retval = msg.exec_()
         else:
             pass
+            
