@@ -163,7 +163,9 @@ class MainWindow(QMainWindow):
             self.labeler = str(text)
 
     def open_package(self):
-        self.package_dir = QFileDialog.getExistingDirectory(self, "选取文件夹", ".")
+        self.package_dir = QFileDialog.getExistingDirectory(self, '选取文件夹', '.')
+        if len(self.package_dir) < 1:
+            return
         # waiting
         self.cast_wid.clean_seltected()
         self.active_cast = 0
@@ -172,19 +174,10 @@ class MainWindow(QMainWindow):
         self.cast_scroll.verticalScrollBar().setValue(0)
         self.proposal_scroll.verticalScrollBar().setValue(0)
         # read affinity matrix
-        progress = QProgressDialog(self)
-        progress.setWindowTitle('请稍等')
-        progress.setLabelText('正在操作...')
-        progress.setWindowModality(Qt.WindowModal)
-        progress.setRange(0, 2)
-        progress.setValue(1)
-        debug_st = time.time()
+        self.statusBar().showMessage('读取数据中,请耐心等待...')
         self.affinity_mat = np.load(os.path.join(self.package_dir, 'Label', 'proposal_affinity.npy'))
-        print('load affinity: {:.2f}'.format(time.time()-debug_st))
-        debug_st = time.time()
         self.affinity_mat = (self.affinity_mat).astype(np.float32) / 1000.0
-        print('change affinity: {:.2f}'.format(time.time()-debug_st))
-        progress.setValue(2)
+        self.statusBar().showMessage('读取数据成功')
         # init cast
         self.update_cast()
         # init proposal
@@ -194,7 +187,6 @@ class MainWindow(QMainWindow):
         self.no_button.setEnabled(True)
         self.others_button.setEnabled(True)
         self.invalid_button.setEnabled(True)
-
         self.update()
 
     def cast_selected_changed(self):
