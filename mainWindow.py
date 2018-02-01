@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from PyQt5.QtWidgets import QWidget, QDesktopWidget, QMainWindow, QAction, QInputDialog, QFileDialog
+from PyQt5.QtWidgets import QWidget, QDesktopWidget, QMainWindow, QAction, QInputDialog, QFileDialog, QProgressDialog
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QGridLayout, QSizePolicy
-from PyQt5.QtWidgets import QPushButton, QLabel, QScrollArea
+from PyQt5.QtWidgets import QPushButton, QLabel, QScrollArea, QMessageBox
 from PyQt5.QtGui import QIcon, QImage, QPixmap, QPainter, QColor, QPen, QFont
 from PyQt5.QtCore import Qt, QPointF, QRect
 
@@ -164,6 +164,7 @@ class MainWindow(QMainWindow):
 
     def open_package(self):
         self.package_dir = QFileDialog.getExistingDirectory(self, "选取文件夹", ".")
+        # waiting
         self.cast_wid.clean_seltected()
         self.active_cast = 0
         self.proposal_wid.clean_seltected()
@@ -171,12 +172,18 @@ class MainWindow(QMainWindow):
         self.cast_scroll.verticalScrollBar().setValue(0)
         self.proposal_scroll.verticalScrollBar().setValue(0)
         # read affinity matrix
+        progress = QProgressDialog(self)
+        progress.setWindowTitle('请稍等')
+        progress.setLabelText('正在操作...')
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setRange(0, 1)
         debug_st = time.time()
         self.affinity_mat = np.load(os.path.join(self.package_dir, 'Label', 'proposal_affinity.npy'))
         print('load affinity: {:.2f}'.format(time.time()-debug_st))
         debug_st = time.time()
         self.affinity_mat = (self.affinity_mat).astype(np.float32) / 1000.0
         print('change affinity: {:.2f}'.format(time.time()-debug_st))
+        progress.setValue(1)
         # init cast
         self.update_cast()
         # init proposal

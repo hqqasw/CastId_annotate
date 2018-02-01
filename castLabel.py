@@ -76,7 +76,7 @@ class CastLabel(QWidget):
             msg = QMessageBox(
                 QMessageBox.Information,
                 'Image', '',
-                buttons = QMessageBox.Ok, parent=self
+                buttons=QMessageBox.Ok, parent=self
             )
             retval = msg.exec_()
         else:
