@@ -12,6 +12,7 @@ import os
 import os.path as osp
 import json
 import numpy as np
+import time
 
 from proposalLabel import ProposalLabel
 
@@ -20,8 +21,8 @@ class ProposalWindow(QWidget):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
-        self.MAX_PROPOSAL_NUM = 100
-        self.proposal_num = 100
+        self.MAX_PROPOSAL_NUM = 40
+        self.proposal_num = 40
         self.num_col = 4
         self.num_row = self.proposal_num // self.num_col
         if self.proposal_num % self.num_col > 0:
@@ -46,9 +47,11 @@ class ProposalWindow(QWidget):
 
     def update_proposal(self, img_list, bbox_list):
         self.proposal_num = len(img_list)
+        # debug_st = time.time()
         for i in range(self.proposal_num):
             self.proposal_labels[i].reset_pixmp(img_list[i], bbox_list[i])
             self.proposal_labels[i].selectable = True
+        # print('\t\t draw pixmap: {:.2f}'.format(float(time.time()-debug_st)))
         for i in range(self.proposal_num, self.MAX_PROPOSAL_NUM):
             self.proposal_labels[i].reset_pixmp()
             self.proposal_labels[i].selectable = False

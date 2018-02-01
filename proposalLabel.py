@@ -12,6 +12,7 @@ import os
 import os.path as osp
 import json
 import numpy as np
+import time
 
 
 class ProposalLabel(QWidget):
@@ -28,6 +29,8 @@ class ProposalLabel(QWidget):
         self.isSelected = False
         self.selectable = False
 
+        self.rectpainter = QPainter()
+
         # paint
         self._painter = QPainter()
         self.pixmap = QPixmap()
@@ -38,18 +41,22 @@ class ProposalLabel(QWidget):
         return width * 0.6
 
     def reset_pixmp(self, img_file=None, bbox=None):
+        # debug_st = time.time()
         if img_file is None:
             qimg = QImage(self.default_img)
         else:
             qimg = QImage(img_file)
+        # print('\t\t\t read img: {:.2f}'.format(float(time.time()-debug_st)))
+        # debug_st = time.time()
         if bbox is not None:
-            rectpainter = QPainter()
-            rectpainter.begin(qimg)
-            rectpainter.setPen(QPen(QColor(0, 200, 0), 8))
-            rectpainter.drawRect(bbox)
-            rectpainter.end()
-            # TODO: draw bbox
+            self.rectpainter.begin(qimg)
+            self.rectpainter.setPen(QPen(QColor(0, 200, 0), 8))
+            self.rectpainter.drawRect(bbox)
+            self.rectpainter.end()
+        # print('\t\t\t draw bbox: {:.2f}'.format(float(time.time()-debug_st)))
+        # debug_st = time.time()
         self.pixmap = QPixmap.fromImage(qimg)
+        # print('\t\t\t draw img: {:.2f}'.format(float(time.time()-debug_st)))
 
     def paintEvent(self, e):
         """paint event"""

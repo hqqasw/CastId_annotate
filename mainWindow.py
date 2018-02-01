@@ -13,6 +13,7 @@ import os.path as osp
 import json
 import numpy as np
 from datetime import datetime
+import time
 
 
 from proposalWindow import ProposalWindow
@@ -25,7 +26,7 @@ class MainWindow(QMainWindow):
 
         # constant
         self.LABELED_LIMIT = 50
-        self.PROPOSAL_LIMIT = 100
+        self.PROPOSAL_LIMIT = 40
 
         # variable
         self.labeler = None
@@ -169,6 +170,9 @@ class MainWindow(QMainWindow):
         self.cast_wid.set_selected_idx(self.active_cast)
         self.cast_scroll.verticalScrollBar().setValue(0)
         self.proposal_scroll.verticalScrollBar().setValue(0)
+        # read affinity matrix
+        affinity_file_name = os.path.join(self.package_dir, 'Label', 'proposal_affinity.npy')
+        self.affinity_mat = np.load(affinity_file_name)
         # init cast
         self.update_cast()
         # init proposal
@@ -195,11 +199,17 @@ class MainWindow(QMainWindow):
 
     def update_proposal(self):
         # update proposal
+        # debug_st = time.time()
         proposal_result = self.get_proposal(self.cast_list[self.active_cast])
+        # print('\t get proposal time: {:.2f}'.format(float(time.time()-debug_st)))
+        # debug_st = time.time()
         self.proposal_list = proposal_result['candidate']
         img_list, bbox_list = self.proposal2info(
             self.proposal_list, osp.join(self.package_dir, 'Image'))
+        # print('\t porposal to info: {:.2f}'.format(float(time.time()-debug_st)))
+        # debug_st = time.time()
         self.proposal_wid.update_proposal(img_list, bbox_list)
+        # print('\t draw proposal: {:.2f}'.format(float(time.time()-debug_st)))
         # update status label
         status_label_text = '已完成： {:d} / {:d}'.format(proposal_result['num_labeled'], proposal_result['num_proposal'])
         self.status_label.setText(status_label_text)
@@ -213,9 +223,15 @@ class MainWindow(QMainWindow):
         pid = self.cast_list[self.active_cast]
         proposal_seltected_idx = self.proposal_wid.get_seletectd_idx()
         labeled_list = [self.proposal_list[x] for x in proposal_seltected_idx]
+        # debug_st = time.time()
         self.update_assignment(pid, labeled_list, [], [], [], self.labeler)
+        # print('assigment: {:.2f}'.format(float(time.time()-debug_st)))
+        # debug_st = time.time()
         self.update_cast()
+        # print('update cast: {:.2f}'.format(float(time.time()-debug_st)))
+        # debug_st = time.time()
         self.update_proposal()
+        # print('update proposal: {:.2f}'.format(float(time.time()-debug_st)))
         self.proposal_wid.clean_seltected()
         self.proposal_scroll.verticalScrollBar().setValue(0)
         self.update()
@@ -295,10 +311,12 @@ class MainWindow(QMainWindow):
 
         score_file_name = os.path.join(self.package_dir, 'Label', 'score_{:05d}.npy'.format(version))
         score_mat = np.load(score_file_name)
+        # debug_st = time.time()
         num_labeled = 0
         num_labeled += (np.max(score_mat, axis=0) == score_positive).sum()
         num_labeled += (np.max(score_mat, axis=0) == score_negative).sum()
         num_labeled += (np.max(score_mat, axis=0) == score_invalid).sum()
+        # print('\t\t count num labeled: {:.3f}'.format(float(time.time()-debug_st)))
 
         cast_map = {}
         for i, name in enumerate(name_cast):
@@ -307,16 +325,20 @@ class MainWindow(QMainWindow):
         for i, name in enumerate(name_proposal):
             proposal_map[name] = i
 
+        # debug_st = time.time()
         pi = cast_map[pid]
         score_array = score_mat[pi]
         rank = np.argsort(-score_array)
+        # print('\t\t ranking: {:.3f}'.format(float(time.time()-debug_st)))
         st = 0
         ed = 0
+        # debug_st = time.time()
         for i, r in enumerate(rank):
             if score_array[r] >= score_positive:
                 st = i+1
             if score_array[r] > score_negative:
                 ed = i+1
+        # print('\t\t get st & ed: {:.3f}'.format(float(time.time()-debug_st)))
         rank_proposal = rank[st:ed]
         if len(rank_proposal) > self.PROPOSAL_LIMIT:
             rank_proposal = rank_proposal[:self.PROPOSAL_LIMIT]
@@ -349,11 +371,10 @@ class MainWindow(QMainWindow):
         log_info = info['log'][-1]
         version = log_info['version']
 
-        affinity_file_name = os.path.join(self.package_dir, 'Label', 'proposal_affinity.npy')
-        affinity_mat = np.load(affinity_file_name)
-
+        # debug_st = time.time()
         score_file_name = os.path.join(self.package_dir, 'Label', 'score_{:05d}.npy'.format(version))
         score_mat = np.load(score_file_name)
+        # print('\t load score mat time: {:.2f}'.format(time.time()-debug_st))
 
         cast_map = {}
         for i, name in enumerate(name_cast):
@@ -363,10 +384,11 @@ class MainWindow(QMainWindow):
             proposal_map[name] = i
         pi = cast_map[pid]
 
+        # debug_st = time.time()
         if len(labeled_list) > 0:
             labeled_idx = [proposal_map[x] for x in labeled_list]
             tmp = np.zeros((num_proposal, 2))
-            tmp[:, 0] = affinity_mat[labeled_idx, :].max(axis=0)
+            tmp[:, 0] = self.affinity_mat[labeled_idx, :].max(axis=0)
             tmp[:, 1] = score_mat[pi]
             reject_mask = (score_mat[pi] == score_negative)
             invalid_mask = (score_mat[pi] == score_invalid)
@@ -376,6 +398,7 @@ class MainWindow(QMainWindow):
             tmp[labeled_idx] = score_positive
             score_mat[:, labeled_idx] = score_negative
             score_mat[pi] = tmp
+        # print('\t update score mat time: {:.2f}'.format(time.time()-debug_st))
 
         if len(reject_list) > 0:
             reject_idx = [proposal_map[x] for x in reject_list]
