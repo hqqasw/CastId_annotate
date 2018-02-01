@@ -176,14 +176,15 @@ class MainWindow(QMainWindow):
         progress.setWindowTitle('请稍等')
         progress.setLabelText('正在操作...')
         progress.setWindowModality(Qt.WindowModal)
-        progress.setRange(0, 1)
+        progress.setRange(0, 2)
+        progress.setValue(1)
         debug_st = time.time()
         self.affinity_mat = np.load(os.path.join(self.package_dir, 'Label', 'proposal_affinity.npy'))
         print('load affinity: {:.2f}'.format(time.time()-debug_st))
         debug_st = time.time()
         self.affinity_mat = (self.affinity_mat).astype(np.float32) / 1000.0
         print('change affinity: {:.2f}'.format(time.time()-debug_st))
-        progress.setValue(1)
+        progress.setValue(2)
         # init cast
         self.update_cast()
         # init proposal
