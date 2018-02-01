@@ -173,6 +173,7 @@ class MainWindow(QMainWindow):
         # read affinity matrix
         debug_st = time.time()
         self.affinity_mat = np.load(os.path.join(self.package_dir, 'Label', 'proposal_affinity.npy'))
+        self.affinity_mat = (self.affinity_mat).astype(np.float) / 1000.0
         print('load affinity: {:.2f}'.format(time.time()-debug_st))
         # init cast
         self.update_cast()
