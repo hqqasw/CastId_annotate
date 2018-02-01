@@ -64,5 +64,4 @@ class ProposalWindow(QWidget):
         for i in range(self.proposal_num):
             if self.proposal_labels[i].isSelected:
                 sidx.append(i)
-        print('proposal:', sidx)
         return sidx

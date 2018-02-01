@@ -31,7 +31,7 @@ class CastLabel(QWidget):
         # paint
         self._painter = QPainter()
         self.pixmap = QPixmap()
-        self.default_img = './img/cast_default.png'
+        self.default_img = osp.join('.', 'img', 'cast_default.png')
         self.reset_pixmp(self.default_img)
 
     def heightForWidth(self, width):

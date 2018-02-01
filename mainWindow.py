@@ -162,7 +162,7 @@ class MainWindow(QMainWindow):
             self.labeler = str(text)
 
     def open_package(self):
-        self.package_dir = QFileDialog.getExistingDirectory(self, "选取文件夹", "./")
+        self.package_dir = QFileDialog.getExistingDirectory(self, "选取文件夹", ".")
         self.cast_wid.clean_seltected()
         self.active_cast = 0
         self.proposal_wid.clean_seltected()
