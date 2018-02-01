@@ -171,8 +171,10 @@ class MainWindow(QMainWindow):
         self.cast_scroll.verticalScrollBar().setValue(0)
         self.proposal_scroll.verticalScrollBar().setValue(0)
         # read affinity matrix
-        affinity_file_name = os.path.join(self.package_dir, 'Label', 'proposal_affinity.npy')
-        self.affinity_mat = np.load(affinity_file_name)
+        face_feat = np.load(os.path.join(self.package_dir, 'Label', 'face_feat.npy'))
+        body_feat = np.load(os.path.join(self.package_dir, 'Label', 'body_feat.npy'))
+        face_mask = np.load(os.path.join(self.package_dir, 'Label', 'face_mask.npy'))
+        self.affinity_mat = self.get_affinity_mat(face_feat, body_feat, face_mask)
         # init cast
         self.update_cast()
         # init proposal
@@ -270,6 +272,41 @@ class MainWindow(QMainWindow):
         self.update()
 
     # utilts
+    def get_affinity_mat(self, face_feat, body_feat, face_mask):
+        # face_similarity = cosine_similarity(face_feat, face_feat)
+        debug_st = time.time()
+        face_similarity = face_feat.dot(face_feat.T)
+        print('face dot: {:.2f}'.format(time.time()-debug_st))
+        debug_st = time.time()
+        mean = face_similarity[face_mask, :][:, face_mask].mean()
+        std = face_similarity[face_mask, :][:, face_mask].std()
+        min_score = face_similarity[face_mask, :][:, face_mask].min()
+        face_similarity = (face_similarity - mean) / std
+        print('face sim: {:.2f}'.format(time.time()-debug_st))
+        debug_st = time.time()
+        random_mat = np.random.random(face_similarity[:, np.logical_not(face_mask)].shape)
+        face_similarity[:, np.logical_not(face_mask)] = min_score - random_mat
+        random_mat = np.random.random(face_similarity[np.logical_not(face_mask), :].shape)
+        face_similarity[np.logical_not(face_mask), :] = min_score - random_mat
+        print('add random: {:.2f}'.format(time.time()-debug_st))
+        debug_st = time.time()
+
+        # body_similarity = cosine_similarity(body_feat, body_feat)
+        body_similarity = body_feat.dot(body_feat.T)
+        print('body dot: {:.2f}'.format(time.time()-debug_st))
+        debug_st = time.time()
+        body_similarity = (body_similarity - body_similarity.mean()) / body_similarity.std()
+        print('body sim: {:.2f}'.format(time.time()-debug_st))
+        debug_st = time.time()
+
+        proposal_num = int(body_feat.shape[0])
+        affinity_mat = np.zeros((proposal_num, proposal_num, 2))
+        affinity_mat[:, :, 0] = face_similarity
+        affinity_mat[:, :, 1] = body_similarity
+        affinity_mat = affinity_mat.max(axis=2)
+        print('calculating affinity: {:.2f}'.format(time.time()-debug_st))
+        return affinity_mat
+
     def proposal2info(self, proposal_list, img_dir):
         img_list = []
         bbox_list = []
