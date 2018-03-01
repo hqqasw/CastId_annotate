@@ -34,6 +34,7 @@ class MainWindow(QMainWindow):
         self.proposal_list = []
         self.active_cast = 0
         self.package_dir = './'
+        self.mid = None
 
         self.initUI()
 
@@ -99,7 +100,7 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setFont(QFont('Roman times', 13))
-        self.status_label.setText('已完成： */*')
+        self.status_label.setText('tt*****  已完成： */*')
 
         # cast window
         self.cast_wid = CastWindow(self)
@@ -175,7 +176,12 @@ class MainWindow(QMainWindow):
         self.proposal_scroll.verticalScrollBar().setValue(0)
         # read affinity matrix
         self.statusBar().showMessage('读取数据中,请耐心等待...')
-        self.affinity_mat = np.load(os.path.join(self.package_dir, 'Label', 'proposal_affinity.npy'))
+        mid_list = os.listdir(os.path.join(self.package_dir, 'Label'))
+        if len(mid_list) != 1:
+            self.statusBar().showMessage('包错误！没有电影或者多于一部电影！')
+            return
+        self.mid = mid_list[0]
+        self.affinity_mat = np.load(os.path.join(self.package_dir, 'Label', self.mid, 'proposal_affinity.npy'))
         self.affinity_mat = (self.affinity_mat).astype(np.float32) / 1000.0
         self.statusBar().showMessage('读取数据成功')
         # init cast
@@ -198,7 +204,7 @@ class MainWindow(QMainWindow):
         # update cast
         self.cast_list = self.get_cast()
         self.cast_wid.set_selected_idx(self.active_cast)
-        cast_img_list = [osp.join(self.package_dir, 'Label', 'cast', x+'.jpg') for x in self.cast_list]
+        cast_img_list = [osp.join(self.package_dir, 'Label', self.mid, 'cast', x+'.jpg') for x in self.cast_list]
         self.cast_wid.update_cast(cast_img_list)
 
     def update_proposal(self):
@@ -209,13 +215,13 @@ class MainWindow(QMainWindow):
         # debug_st = time.time()
         self.proposal_list = proposal_result['candidate']
         img_list, bbox_list = self.proposal2info(
-            self.proposal_list, osp.join(self.package_dir, 'Image'))
+            self.proposal_list, osp.join(self.package_dir, 'Image', self.mid))
         # print('\t porposal to info: {:.2f}'.format(float(time.time()-debug_st)))
         # debug_st = time.time()
         self.proposal_wid.update_proposal(img_list, bbox_list)
         # print('\t draw proposal: {:.2f}'.format(float(time.time()-debug_st)))
         # update status label
-        status_label_text = '已完成： {:d} / {:d}'.format(proposal_result['num_labeled'], proposal_result['num_proposal'])
+        status_label_text = '{}    已完成： {:d} / {:d}'.format(self.mid, proposal_result['num_labeled'], proposal_result['num_proposal'])
         self.status_label.setText(status_label_text)
 
     # key and button event
@@ -295,13 +301,13 @@ class MainWindow(QMainWindow):
         return bbox
 
     def get_cast(self):
-        meta_file_name = os.path.join(self.package_dir, 'Label', 'meta.json')
+        meta_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'meta.json')
         with open(meta_file_name, 'r') as f:
             info = json.load(f)
         return info['cast']
 
     def get_proposal(self, pid):
-        meta_file_name = os.path.join(self.package_dir, 'Label', 'meta.json')
+        meta_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'meta.json')
         with open(meta_file_name, 'r') as f:
             info = json.load(f)
         name_cast = info['cast']
@@ -313,7 +319,7 @@ class MainWindow(QMainWindow):
         log_info = info['log'][-1]
         version = log_info['version']
 
-        score_file_name = os.path.join(self.package_dir, 'Label', 'score_{:05d}.npy'.format(version))
+        score_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'score.npy')
         score_mat = np.load(score_file_name)
         # debug_st = time.time()
         num_labeled = 0
@@ -362,7 +368,7 @@ class MainWindow(QMainWindow):
         return result
 
     def update_assignment(self, pid, labeled_list, reject_list, others_list, invalid_list, labeler=None):
-        meta_file_name = os.path.join(self.package_dir, 'Label', 'meta.json')
+        meta_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'meta.json')
         with open(meta_file_name, 'r') as f:
             info = json.load(f)
         name_cast = info['cast']
@@ -376,7 +382,7 @@ class MainWindow(QMainWindow):
         version = log_info['version']
 
         # debug_st = time.time()
-        score_file_name = os.path.join(self.package_dir, 'Label', 'score_{:05d}.npy'.format(version))
+        score_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'score.npy')
         score_mat = np.load(score_file_name)
         # print('\t load score mat time: {:.2f}'.format(time.time()-debug_st))
 
@@ -421,7 +427,7 @@ class MainWindow(QMainWindow):
         version += 1
 
         # save score
-        score_file_name = os.path.join(self.package_dir, 'Label', 'score_{:05d}'.format(version))
+        score_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'score')
         np.save(score_file_name, score_mat)
 
         # save meta
