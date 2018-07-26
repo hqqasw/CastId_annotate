@@ -214,6 +214,7 @@ class MainWindow(QMainWindow):
         self.mid_label = QLabel()
         self.mid_label.setAlignment(Qt.AlignCenter)
         self.mid_label.setFont(QFont('Roman times', 15))
+        self.mid_label.setStyleSheet('color: darkred')
         self.mid_label.setText('tt*****')
         self.mid_label.mousePressEvent = self.mid_labeld_clicked
 
@@ -419,12 +420,13 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
             self.close()
-        if e.key() == Qt.Key_Right:
-            if self.slider.value() < self.slider.maximum():
-                self.slider.setValue(self.slider.value() + 1)
-        if e.key() == Qt.Key_Left:
-            if self.slider.value() > 0:
-                self.slider.setValue(self.slider.value() - 1)
+        if self.mode == 'temporal':
+            if e.key() == Qt.Key_Right:
+                if self.slider.value() < self.slider.maximum():
+                    self.slider.setValue(self.slider.value() + 1)
+            if e.key() == Qt.Key_Left:
+                if self.slider.value() > 0:
+                    self.slider.setValue(self.slider.value() - 1)
 
     def yes_button_clicked(self):
         pid = self.cast_list[self.active_cast]
