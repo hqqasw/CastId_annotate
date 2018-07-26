@@ -15,9 +15,9 @@ import numpy as np
 import time
 
 
-class ProposalLabel(QWidget):
+class FrameLabel(QWidget):
     def __init__(self, parent):
-        super(ProposalLabel, self).__init__()
+        super(FrameLabel, self).__init__()
         self.parent = parent
 
         # size policy
@@ -41,22 +41,16 @@ class ProposalLabel(QWidget):
         return width * 0.6
 
     def reset_pixmp(self, img_file=None, bbox=None):
-        # debug_st = time.time()
         if img_file is None:
             qimg = QImage(self.default_img)
         else:
             qimg = QImage(img_file)
-        # print('\t\t\t read img: {:.2f}'.format(float(time.time()-debug_st)))
-        # debug_st = time.time()
         if bbox is not None:
             self.rectpainter.begin(qimg)
             self.rectpainter.setPen(QPen(QColor(0, 200, 0), 8))
             self.rectpainter.drawRect(bbox)
             self.rectpainter.end()
-        # print('\t\t\t draw bbox: {:.2f}'.format(float(time.time()-debug_st)))
-        # debug_st = time.time()
         self.pixmap = QPixmap.fromImage(qimg)
-        # print('\t\t\t draw img: {:.2f}'.format(float(time.time()-debug_st)))
 
     def paintEvent(self, e):
         """paint event"""
@@ -77,11 +71,3 @@ class ProposalLabel(QWidget):
             painter.drawRect(self.rect())
 
         painter.end()
-
-    def mousePressEvent(self, e):
-        # -- if mouse left click
-        if e.button() == Qt.LeftButton and self.selectable:
-            self.isSelected = not self.isSelected
-            self.update()
-        else:
-            pass

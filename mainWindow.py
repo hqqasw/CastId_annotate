@@ -4,8 +4,8 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QDesktopWidget, QMainWindow, QAction, QInputDialog, QFileDialog, QProgressDialog
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QGridLayout, QSizePolicy
-from PyQt5.QtWidgets import QPushButton, QLabel, QScrollArea, QMessageBox
-from PyQt5.QtGui import QIcon, QImage, QPixmap, QPainter, QColor, QPen, QFont
+from PyQt5.QtWidgets import QPushButton, QLabel, QScrollArea, QMessageBox, QSlider, QLineEdit
+from PyQt5.QtGui import QIcon, QImage, QPixmap, QPainter, QColor, QPen, QFont, QIntValidator, QGuiApplication
 from PyQt5.QtCore import Qt, QPointF, QRect
 
 import os
@@ -14,10 +14,12 @@ import json
 import numpy as np
 from datetime import datetime
 import time
+import webbrowser
 
-
+from castLabel import CastLabel
 from proposalWindow import ProposalWindow
 from castWindow import CastWindow
+from frameWindow import FrameWindow
 
 
 class MainWindow(QMainWindow):
@@ -32,6 +34,7 @@ class MainWindow(QMainWindow):
         self.labeler = None
         self.cast_list = []
         self.proposal_list = []
+        self.frame_list = []
         self.active_cast = 0
         self.package_dir = './'
         self.mid = None
@@ -50,6 +53,11 @@ class MainWindow(QMainWindow):
         openAction.setStatusTip('打开一个包')
         openAction.triggered.connect(self.open_package)
 
+        convertAction = QAction(QIcon('./icons/convert.png'), '转换', self)
+        convertAction.setShortcut('Ctrl+P')
+        convertAction.setStatusTip('推荐/时序 模式转换')
+        convertAction.triggered.connect(self.convert_mode)
+
         # status bar
         self.statusBar().showMessage('Ready')
 
@@ -57,11 +65,25 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(openAction)
+        modeMenu = menubar.addMenu('&Mode')
+        modeMenu.addAction(convertAction)
 
         # tool bar
-        self.toolbar = self.addToolBar('打开')
+        self.toolbar = self.addToolBar('maintb')
         self.toolbar.addAction(openAction)
+        self.toolbar.addAction(convertAction)
 
+        # init mode as visual
+        self.labeler = None
+        self.mode = 'visual'  # mode: visual or temporal
+        self.status = 'init'  # status: init or labeling
+
+        # init visual UI
+        self.init_visual_UI()
+
+        self.showloginDialog()
+
+    def init_visual_UI(self):
         # main widget
         self.main_wid = QWidget()
         self.setCentralWidget(self.main_wid)
@@ -100,7 +122,15 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setFont(QFont('Roman times', 13))
-        self.status_label.setText('tt*****  已完成： */*')
+        self.status_label.setText('已完成： */*')
+
+        # mid label
+        self.mid_label = QLabel()
+        self.mid_label.setAlignment(Qt.AlignCenter)
+        self.mid_label.setFont(QFont('Roman times', 15))
+        self.mid_label.setStyleSheet('color: darkred')
+        self.mid_label.setText('tt*****')
+        self.mid_label.mousePressEvent = self.mid_labeld_clicked
 
         # cast window
         self.cast_wid = CastWindow(self)
@@ -114,7 +144,6 @@ class MainWindow(QMainWindow):
 
         # proposal window
         self.proposal_wid = ProposalWindow(self)
-        # self.proposal_wid.setMinimumSize(100, 1500)
         self.proposal_scroll = QScrollArea()
         self.proposal_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.proposal_scroll.setWidget(self.proposal_wid)
@@ -124,7 +153,8 @@ class MainWindow(QMainWindow):
         # layout
         self.button_layout = QHBoxLayout()
         self.button_layout.addStretch(2)
-        self.button_layout.addWidget(self.status_label, 6)
+        self.button_layout.addWidget(self.mid_label, 3)
+        self.button_layout.addWidget(self.status_label, 3)
         self.button_layout.addStretch(4)
         self.button_layout.addWidget(self.yes_button, 6)
         self.button_layout.addStretch(1)
@@ -150,7 +180,90 @@ class MainWindow(QMainWindow):
         self.main_wid.setLayout(self.main_layout)
         self.center()
         self.show()
-        self.showloginDialog()
+
+    def init_temporal_UI(self):
+
+        # main widget
+        self.main_wid = QWidget()
+        self.setCentralWidget(self.main_wid)
+        self.main_wid.setFocusPolicy(Qt.StrongFocus)
+
+        # slide
+        self.slider = QSlider(Qt.Horizontal)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(100)
+        self.slider.valueChanged.connect(self.slider_value_changed)
+        self.slider.setEnabled(False)
+        self.frame_num_label = QLabel(self)
+        self.frame_num_label.setFont(QFont('Roman times', 13))
+        self.frame_num_label.setText('/*')
+        self.frame_idx_label = QLineEdit(self)
+        self.frame_idx_label.setFont(QFont('Roman times', 13))
+        self.frame_idx_label.setText('*')
+        self.frame_idx_label.setValidator(QIntValidator())
+        self.frame_idx_label.editingFinished.connect(self.frame_idx_changed)
+        self.frame_idx_label.setEnabled(False)
+
+        # status label
+        self.status_label = QLabel()
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setFont(QFont('Roman times', 13))
+        self.status_label.setText('已完成： */*')
+
+        # mid label
+        self.mid_label = QLabel()
+        self.mid_label.setAlignment(Qt.AlignCenter)
+        self.mid_label.setFont(QFont('Roman times', 15))
+        self.mid_label.setText('tt*****')
+        self.mid_label.mousePressEvent = self.mid_labeld_clicked
+
+        # cast window
+        self.cast_wid = CastWindow(self, wide=True)
+
+        # Frame window
+        self.frame_wid = FrameWindow(self)
+
+        # seleted cast window
+        self.selcast_wid = CastLabel(self)
+        self.selcast_layout = QVBoxLayout()
+        self.selcast_layout.addStretch(4)
+        self.selcast_layout.addWidget(self.selcast_wid, 10)
+        self.selcast_layout.addStretch(4)
+
+        # layout
+        self.button_layout = QHBoxLayout()
+        self.button_layout.addStretch(2)
+        self.button_layout.addWidget(self.mid_label, 3)
+        self.button_layout.addWidget(self.status_label, 3)
+        self.button_layout.addStretch(4)
+        self.button_layout.addWidget(self.slider, 20)
+        self.button_layout.addWidget(self.frame_idx_label, 4)
+        self.button_layout.addWidget(self.frame_num_label, 4)
+        self.button_layout.addStretch(2)
+
+        self.cast_layout = QHBoxLayout()
+        self.cast_layout.addStretch(2)
+        self.cast_layout.addWidget(self.cast_wid, 30)
+        self.cast_layout.addStretch(2)
+        self.cast_layout.addLayout(self.selcast_layout, 8)
+        self.cast_layout.addStretch(2)
+
+        self.img_layout = QVBoxLayout()
+        self.img_layout.addLayout(self.cast_layout, 18)
+        self.img_layout.addStretch(1)
+        self.img_layout.addWidget(self.frame_wid, 20)
+        self.img_layout.addStretch(1)
+
+        self.main_layout = QVBoxLayout()
+        self.main_layout.addLayout(self.img_layout, 48)
+        self.main_layout.addStretch(1)
+        self.main_layout.addLayout(self.button_layout, 4)
+        self.main_layout.addStretch(1)
+
+        # initial action
+        self.main_wid.setLayout(self.main_layout)
+        self.center()
+        self.show()
 
     def center(self):
         qr = self.frameGeometry()
@@ -164,10 +277,14 @@ class MainWindow(QMainWindow):
             self.labeler = str(text)
 
     def open_package(self):
-        self.package_dir = QFileDialog.getExistingDirectory(self, '选取文件夹', '.')
-        if len(self.package_dir) < 1:
+        new_package_dir = QFileDialog.getExistingDirectory(self, '选取文件夹', '.')
+        if len(new_package_dir) < 1:
             return
-        # waiting
+        self.package_dir = new_package_dir
+        if self.mode == 'temporal':
+            self.mode = 'visual'
+            self.init_visual_UI()
+        # reset all UI
         self.cast_wid.clean_seltected()
         self.active_cast = 0
         self.proposal_wid.clean_seltected()
@@ -184,6 +301,8 @@ class MainWindow(QMainWindow):
         self.affinity_mat = np.load(os.path.join(self.package_dir, 'Label', self.mid, 'proposal_affinity.npy'))
         self.affinity_mat = (self.affinity_mat).astype(np.float32) / 1000.0
         self.statusBar().showMessage('读取数据成功')
+        self.status = 'labeling'
+        self.mid_label.setText(self.mid)
         # init cast
         self.update_cast()
         # init proposal
@@ -195,9 +314,64 @@ class MainWindow(QMainWindow):
         self.invalid_button.setEnabled(True)
         self.update()
 
+    def convert_mode(self):
+        self.cast_wid.clean_seltected()
+        if self.mode == 'visual':
+            self.mode = 'temporal'
+            self.init_temporal_UI()
+            self.active_frame = 0
+            if self.status == 'labeling':
+                self.mid_label.setText(self.mid)
+                self.active_frame = 0
+                self.update_frame()
+                self.active_cast = self.label_list[self.active_frame]
+                self.slider.setMaximum(len(self.label_list) - 1)
+                self.frame_num_label.setText('/{}'.format(len(self.label_list) - 1))
+                self.slider.setValue(0)
+                self.frame_idx_label.setText('0')
+                self.cast_wid.set_selected_idx(self.active_cast)
+                self.update_cast()
+                self.update_selcast()
+                # set slider and lineedit enable
+                self.slider.setEnabled(True)
+                self.frame_idx_label.setEnabled(True)
+                self.update()
+        else:
+            self.mode = 'visual'
+            self.init_visual_UI()
+            # reset all UI
+            if self.status == 'labeling':
+                self.mid_label.setText(self.mid)
+                self.active_cast = 0
+                self.proposal_wid.clean_seltected()
+                self.cast_wid.set_selected_idx(self.active_cast)
+                self.cast_scroll.verticalScrollBar().setValue(0)
+                self.proposal_scroll.verticalScrollBar().setValue(0)
+                self.update_cast()
+                self.update_proposal()
+                # set button enable
+                self.yes_button.setEnabled(True)
+                self.no_button.setEnabled(True)
+                self.others_button.setEnabled(True)
+                self.invalid_button.setEnabled(True)
+                self.update()
+
     def cast_selected_changed(self):
         self.active_cast = self.cast_wid.get_seletectd_idx()
-        self.update_proposal()
+        if self.mode == 'visual':
+            self.update_proposal()
+        else:
+            self.update_selcast()
+            self.cast_wid.set_selected_idx(self.active_cast)
+            # update assignment
+            if self.active_cast == len(self.cast_list):
+                self.update_assignment(None, [], [], [self.frame_list[self.active_frame]], [], self.labeler)
+            elif self.active_cast == len(self.cast_list) + 1:
+                self.update_assignment(None, [], [], [], [self.frame_list[self.active_frame]], self.labeler)
+            elif self.active_cast >= 0:
+                self.update_assignment(self.cast_list[self.active_cast], [self.frame_list[self.active_frame]], [], [], [], self.labeler)
+            self.update_cast()
+            self.update_frame()
         self.update()
 
     def update_cast(self):
@@ -205,43 +379,60 @@ class MainWindow(QMainWindow):
         self.cast_list = self.get_cast()
         self.cast_wid.set_selected_idx(self.active_cast)
         cast_img_list = [osp.join(self.package_dir, 'Label', self.mid, 'cast', x+'.jpg') for x in self.cast_list]
+        if self.mode == 'temporal':
+            cast_img_list.append(osp.join('.', 'img', 'others.png'))
+            cast_img_list.append(osp.join('.', 'img', 'invalid.png'))
         self.cast_wid.update_cast(cast_img_list)
 
     def update_proposal(self):
-        # update proposal
-        # debug_st = time.time()
         proposal_result = self.get_proposal(self.cast_list[self.active_cast])
-        # print('\t get proposal time: {:.2f}'.format(float(time.time()-debug_st)))
-        # debug_st = time.time()
         self.proposal_list = proposal_result['candidate']
         img_list, bbox_list = self.proposal2info(
             self.proposal_list, osp.join(self.package_dir, 'Image', self.mid))
-        # print('\t porposal to info: {:.2f}'.format(float(time.time()-debug_st)))
-        # debug_st = time.time()
         self.proposal_wid.update_proposal(img_list, bbox_list)
-        # print('\t draw proposal: {:.2f}'.format(float(time.time()-debug_st)))
-        # update status label
-        status_label_text = '{}    已完成： {:d} / {:d}'.format(self.mid, proposal_result['num_labeled'], proposal_result['num_proposal'])
+        status_label_text = '已完成： {:d} / {:d}'.format(proposal_result['num_labeled'], proposal_result['num_proposal'])
         self.status_label.setText(status_label_text)
+
+    def update_frame(self):
+        frame_result = self.get_frame()
+        self.frame_list = frame_result['candidate']
+        self.label_list = frame_result['labels']
+        img_list, bbox_list = self.proposal2info(
+            self.frame_list, osp.join(self.package_dir, 'Image', self.mid))
+        self.frame_wid.update_frame(img_list, bbox_list, self.active_frame)
+        status_label_text = '已完成： {:d} / {:d}'.format(frame_result['num_labeled'], frame_result['num_proposal'])
+        self.status_label.setText(status_label_text)
+
+    def update_selcast(self):
+        if self.active_cast < 0:
+            self.selcast_wid.reset_pixmp()
+        else:
+            if self.active_cast == len(self.cast_list):
+                img_name = osp.join('.', 'img', 'others.png')
+            elif self.active_cast == len(self.cast_list) + 1:
+                img_name = osp.join('.', 'img', 'invalid.png')
+            else:
+                img_name = osp.join(self.package_dir, 'Label', self.mid, 'cast', '{}.jpg'.format(self.cast_list[self.active_cast]))
+            self.selcast_wid.reset_pixmp(img_name)
 
     # key and button event
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
             self.close()
+        if e.key() == Qt.Key_Right:
+            if self.slider.value() < self.slider.maximum():
+                self.slider.setValue(self.slider.value() + 1)
+        if e.key() == Qt.Key_Left:
+            if self.slider.value() > 0:
+                self.slider.setValue(self.slider.value() - 1)
 
     def yes_button_clicked(self):
         pid = self.cast_list[self.active_cast]
         proposal_seltected_idx = self.proposal_wid.get_seletectd_idx()
         labeled_list = [self.proposal_list[x] for x in proposal_seltected_idx]
-        # debug_st = time.time()
         self.update_assignment(pid, labeled_list, [], [], [], self.labeler)
-        # print('assigment: {:.2f}'.format(float(time.time()-debug_st)))
-        # debug_st = time.time()
         self.update_cast()
-        # print('update cast: {:.2f}'.format(float(time.time()-debug_st)))
-        # debug_st = time.time()
         self.update_proposal()
-        # print('update proposal: {:.2f}'.format(float(time.time()-debug_st)))
         self.proposal_wid.clean_seltected()
         self.proposal_scroll.verticalScrollBar().setValue(0)
         self.update()
@@ -279,7 +470,37 @@ class MainWindow(QMainWindow):
         self.proposal_scroll.verticalScrollBar().setValue(0)
         self.update()
 
-    # utilts
+    def slider_value_changed(self):
+        self.active_frame = self.slider.value()
+        self.update_frame()
+        self.active_cast = self.label_list[self.active_frame]
+        self.cast_wid.clean_seltected()
+        self.cast_wid.set_selected_idx(self.active_cast)
+        self.update_cast()
+        self.update_selcast()
+        self.frame_idx_label.setText('{}'.format(self.slider.value()))
+        self.update()
+
+    def frame_idx_changed(self):
+        value = int(self.frame_idx_label.text())
+        if value >= 0 and value < len(self.frame_list):
+            self.slider.setValue(value)
+        else:
+            self.slider.setValue(self.slider.value())
+
+    def mid_labeld_clicked(self, e):
+        # -- if mouse left click
+        if self.mid is not None and e.button() == Qt.LeftButton:
+            if QGuiApplication.keyboardModifiers() == Qt.ControlModifier:
+                url = 'https://www.imdb.com/title/' + self.mid
+                webbrowser.open_new_tab(url)
+            elif QGuiApplication.keyboardModifiers() == Qt.ShiftModifier:
+                url = 'https://movie.douban.com/subject_search?search_text=' + self.mid
+                webbrowser.open_new_tab(url)
+        else:
+            pass
+
+    # utils
     def proposal2info(self, proposal_list, img_dir):
         img_list = []
         bbox_list = []
@@ -307,6 +528,10 @@ class MainWindow(QMainWindow):
         return info['cast']
 
     def get_proposal(self, pid):
+        """
+        for visual mode
+        get unlabeled proposals only
+        """
         meta_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'meta.json')
         with open(meta_file_name, 'r') as f:
             info = json.load(f)
@@ -321,12 +546,11 @@ class MainWindow(QMainWindow):
 
         score_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'score.npy')
         score_mat = np.load(score_file_name)
-        # debug_st = time.time()
+        max_score = np.max(score_mat, axis=0)
         num_labeled = 0
-        num_labeled += (np.max(score_mat, axis=0) == score_positive).sum()
-        num_labeled += (np.max(score_mat, axis=0) == score_negative).sum()
-        num_labeled += (np.max(score_mat, axis=0) == score_invalid).sum()
-        # print('\t\t count num labeled: {:.3f}'.format(float(time.time()-debug_st)))
+        num_labeled += (max_score == score_positive).sum()
+        num_labeled += (max_score == score_negative).sum()
+        num_labeled += (max_score == score_invalid).sum()
 
         cast_map = {}
         for i, name in enumerate(name_cast):
@@ -335,20 +559,16 @@ class MainWindow(QMainWindow):
         for i, name in enumerate(name_proposal):
             proposal_map[name] = i
 
-        # debug_st = time.time()
         pi = cast_map[pid]
         score_array = score_mat[pi]
         rank = np.argsort(-score_array)
-        # print('\t\t ranking: {:.3f}'.format(float(time.time()-debug_st)))
         st = 0
         ed = 0
-        # debug_st = time.time()
         for i, r in enumerate(rank):
             if score_array[r] >= score_positive:
                 st = i+1
             if score_array[r] > score_negative:
                 ed = i+1
-        # print('\t\t get st & ed: {:.3f}'.format(float(time.time()-debug_st)))
         rank_proposal = rank[st:ed]
         if len(rank_proposal) > self.PROPOSAL_LIMIT:
             rank_proposal = rank_proposal[:self.PROPOSAL_LIMIT]
@@ -367,6 +587,48 @@ class MainWindow(QMainWindow):
         result['num_labeled'] = int(num_labeled)
         return result
 
+    def get_frame(self):
+        """
+        for temporal mode
+        get all proposals
+        """
+        meta_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'meta.json')
+        with open(meta_file_name, 'r') as f:
+            info = json.load(f)
+        name_cast = info['cast']
+        name_proposal = info['proposal']
+        score_positive = info['score_positive']
+        score_negative = info['score_negative']
+        score_invalid = info['score_invalid']
+        num_proposal = int(info['num_proposal'])
+        num_cast = int(info['num_cast'])
+        log_info = info['log'][-1]
+        version = log_info['version']
+
+        score_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'score.npy')
+        score_mat = np.load(score_file_name)
+        max_score = np.max(score_mat, axis=0)
+        max_idx = np.argmax(score_mat, axis=0)
+        positive_mask = (max_score == score_positive)
+        negative_mask = (max_score == score_negative)
+        invalid_mask = (max_score == score_invalid)
+        # labels: -1: no annotation; 0-9: labeled as one of the cast; 10: others; 11: invalid
+        labels = np.ones((num_proposal,), dtype=np.int16)*-1
+        labels[positive_mask] = max_idx[positive_mask]
+        labels[negative_mask] = num_cast
+        labels[invalid_mask] = num_cast + 1
+        num_labeled = 0
+        num_labeled += positive_mask.sum()
+        num_labeled += negative_mask.sum()
+        num_labeled += invalid_mask.sum()
+
+        result = {}
+        result['labels'] = labels.tolist()
+        result['candidate'] = name_proposal
+        result['num_proposal'] = int(num_proposal)
+        result['num_labeled'] = int(num_labeled)
+        return result
+
     def update_assignment(self, pid, labeled_list, reject_list, others_list, invalid_list, labeler=None):
         meta_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'meta.json')
         with open(meta_file_name, 'r') as f:
@@ -381,10 +643,8 @@ class MainWindow(QMainWindow):
         log_info = info['log'][-1]
         version = log_info['version']
 
-        # debug_st = time.time()
         score_file_name = os.path.join(self.package_dir, 'Label', self.mid, 'score.npy')
         score_mat = np.load(score_file_name)
-        # print('\t load score mat time: {:.2f}'.format(time.time()-debug_st))
 
         cast_map = {}
         for i, name in enumerate(name_cast):
@@ -392,10 +652,9 @@ class MainWindow(QMainWindow):
         proposal_map = {}
         for i, name in enumerate(name_proposal):
             proposal_map[name] = i
-        pi = cast_map[pid]
 
-        # debug_st = time.time()
         if len(labeled_list) > 0:
+            pi = cast_map[pid]
             labeled_idx = [proposal_map[x] for x in labeled_list]
             tmp = np.zeros((num_proposal, 2))
             tmp[:, 0] = self.affinity_mat[labeled_idx, :].max(axis=0)
@@ -408,9 +667,9 @@ class MainWindow(QMainWindow):
             tmp[labeled_idx] = score_positive
             score_mat[:, labeled_idx] = score_negative
             score_mat[pi] = tmp
-        # print('\t update score mat time: {:.2f}'.format(time.time()-debug_st))
 
         if len(reject_list) > 0:
+            pi = cast_map[pid]
             reject_idx = [proposal_map[x] for x in reject_list]
             tmp = score_mat[pi]
             tmp[reject_idx] = score_negative

@@ -17,20 +17,38 @@ from castLabel import CastLabel
 
 
 class CastWindow(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, wide=False):
         super().__init__()
         self.parent = parent
-        self.MAX_CAST_NUM = 10
-        self.cast_num = 10
+        self.wide = wide
+        if self.wide:
+            self.MAX_CAST_NUM = 12
+            self.num_col = 6
+            self.num_row = 2
+            self.cast_num = 12
+        else:
+            self.MAX_CAST_NUM = 10
+            self.cast_num = 10
         self.cast_labels = [CastLabel(self) for i in range(self.MAX_CAST_NUM)]
         print('init Cast Window.')
 
         self.initUI()
 
     def initUI(self):
-        self.layout = QVBoxLayout()
-        for i in range(self.cast_num):
-            self.layout.addWidget(self.cast_labels[i])
+        if self.wide:
+            self.layout = QGridLayout()
+            for i in range(self.num_col):
+                self.layout.setColumnStretch(i, 1)
+            for i in range(self.num_row):
+                self.layout.setRowStretch(i, 1)
+            positions = [(i, j) for i in range(self.num_row) for j in range(self.num_col)]
+            for i in range(self.cast_num):
+                if i < self.MAX_CAST_NUM:
+                    self.layout.addWidget(self.cast_labels[i], *positions[i])
+        else:
+            self.layout = QVBoxLayout()
+            for i in range(self.cast_num):
+                self.layout.addWidget(self.cast_labels[i])
         self.setLayout(self.layout)
 
     def update_cast(self, cast_list):
@@ -52,7 +70,7 @@ class CastWindow(QWidget):
             self.update()
 
     def set_selected_idx(self, idx):
-        if idx < self.cast_num:
+        if idx < self.cast_num and idx >= 0:
             self.cast_labels[idx].isSelected = True
         self.update()
 
