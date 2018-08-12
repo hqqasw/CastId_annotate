@@ -82,6 +82,10 @@ class MainWindow(QMainWindow):
         self.init_visual_UI()
 
         self.showloginDialog()
+        if len(self.labeler) > 0:
+            self.setWindowTitle('电影人物标注 -- {}'.format(self.labeler))
+        else:
+            self.setWindowTitle('电影人物标注 -- 无名氏')
 
     def init_visual_UI(self):
         # main widget
