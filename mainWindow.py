@@ -361,20 +361,25 @@ class MainWindow(QMainWindow):
                 self.update()
 
     def cast_selected_changed(self):
+        old_active_cast = self.active_cast
         self.active_cast = self.cast_wid.get_seletectd_idx()
         if self.mode == 'visual':
             self.update_proposal()
         else:
+            if old_active_cast == self.active_cast:
+                self.active_cast = -1
             self.update_selcast()
             self.cast_wid.set_selected_idx(self.active_cast)
             # update assignment
             if self.active_cast == len(self.cast_list):
-                self.update_assignment(None, [], [], [self.frame_list[self.active_frame]], [], self.labeler)
+                self.update_assignment(None, [], [], [self.frame_list[self.active_frame]], [], [], self.labeler)
             elif self.active_cast == len(self.cast_list) + 1:
-                self.update_assignment(None, [], [], [], [self.frame_list[self.active_frame]], self.labeler)
+                self.update_assignment(None, [], [], [], [self.frame_list[self.active_frame]], [], self.labeler)
             elif self.active_cast >= 0:
-                self.update_assignment(self.cast_list[self.active_cast], [self.frame_list[self.active_frame]], [], [], [], self.labeler)
-            self.update_cast()
+                self.update_assignment(self.cast_list[self.active_cast], [self.frame_list[self.active_frame]], [], [], [], [], self.labeler)
+            elif self.active_cast == -1:
+                self.update_assignment(None, [], [], [], [], [self.frame_list[self.active_frame]], self.labeler)
+            # self.update_cast()
             self.update_frame()
         self.update()
 
@@ -435,7 +440,7 @@ class MainWindow(QMainWindow):
         pid = self.cast_list[self.active_cast]
         proposal_seltected_idx = self.proposal_wid.get_seletectd_idx()
         labeled_list = [self.proposal_list[x] for x in proposal_seltected_idx]
-        self.update_assignment(pid, labeled_list, [], [], [], self.labeler)
+        self.update_assignment(pid, labeled_list, [], [], [], [], self.labeler)
         self.update_cast()
         self.update_proposal()
         self.proposal_wid.clean_seltected()
@@ -446,7 +451,7 @@ class MainWindow(QMainWindow):
         pid = self.cast_list[self.active_cast]
         proposal_seltected_idx = self.proposal_wid.get_seletectd_idx()
         reject_list = [self.proposal_list[x] for x in proposal_seltected_idx]
-        self.update_assignment(pid, [], reject_list, [], [], self.labeler)
+        self.update_assignment(pid, [], reject_list, [], [], [], self.labeler)
         self.update_cast()
         self.update_proposal()
         self.proposal_wid.clean_seltected()
@@ -457,7 +462,7 @@ class MainWindow(QMainWindow):
         pid = self.cast_list[self.active_cast]
         proposal_seltected_idx = self.proposal_wid.get_seletectd_idx()
         others_list = [self.proposal_list[x] for x in proposal_seltected_idx]
-        self.update_assignment(pid, [], [], others_list, [], self.labeler)
+        self.update_assignment(pid, [], [], others_list, [], [], self.labeler)
         self.update_cast()
         self.update_proposal()
         self.proposal_wid.clean_seltected()
@@ -468,7 +473,7 @@ class MainWindow(QMainWindow):
         pid = self.cast_list[self.active_cast]
         proposal_seltected_idx = self.proposal_wid.get_seletectd_idx()
         invalid_list = [self.proposal_list[x] for x in proposal_seltected_idx]
-        self.update_assignment(pid, [], [], [], invalid_list, self.labeler)
+        self.update_assignment(pid, [], [], [], invalid_list, [], self.labeler)
         self.update_cast()
         self.update_proposal()
         self.proposal_wid.clean_seltected()
@@ -634,7 +639,7 @@ class MainWindow(QMainWindow):
         result['num_labeled'] = int(num_labeled)
         return result
 
-    def update_assignment(self, pid, labeled_list, reject_list, others_list, invalid_list, labeler=None):
+    def update_assignment(self, pid, labeled_list, reject_list, others_list, invalid_list, uncertain_list, labeler=None):
         meta_file_name = os.path.join(self.package_dir, 'label', 'meta.json')
         with open(meta_file_name, 'r') as f:
             info = json.load(f)
@@ -688,6 +693,10 @@ class MainWindow(QMainWindow):
             invalid_idx = [proposal_map[x] for x in invalid_list]
             score_mat[:, invalid_idx] = score_invalid
 
+        if len(uncertain_list) > 0:
+            uncertain_idx = [proposal_map[x] for x in uncertain_list]
+            score_mat[:, uncertain_idx] = 0.1
+
         version += 1
 
         # save score
@@ -703,7 +712,8 @@ class MainWindow(QMainWindow):
                 'set_positive': len(labeled_list),
                 'set_negative': len(reject_list),
                 'set_others': len(others_list),
-                'set_invalid': len(invalid_list)
+                'set_invalid': len(invalid_list),
+                'set_uncertain': len(uncertain_list)
             }
         }
         info['log'].append(new_log_info)

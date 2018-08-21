@@ -67,11 +67,13 @@ class CastWindow(QWidget):
     def clean_seltected(self):
         for i in range(self.cast_num):
             self.cast_labels[i].isSelected = False
-            self.update()
+        self.update()
 
     def set_selected_idx(self, idx):
         if idx < self.cast_num and idx >= 0:
             self.cast_labels[idx].isSelected = True
+        else:
+            self.clean_seltected()
         self.update()
 
     def get_seletectd_idx(self):
