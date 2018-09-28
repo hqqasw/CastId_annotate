@@ -17,14 +17,17 @@ from castLabel import CastLabel
 
 
 class CastWindow(QWidget):
-    def __init__(self, parent, wide=False):
+    def __init__(self, parent, mode='normal'):
         super().__init__()
         self.parent = parent
-        self.wide = wide
-        if self.wide:
+        self.mode = mode
+        if self.mode == 'wide':
             self.MAX_CAST_NUM = 12
             self.num_col = 6
             self.num_row = 2
+            self.cast_num = 12
+        elif self.mode == 'long':
+            self.MAX_CAST_NUM = 12
             self.cast_num = 12
         else:
             self.MAX_CAST_NUM = 10
@@ -35,7 +38,7 @@ class CastWindow(QWidget):
         self.initUI()
 
     def initUI(self):
-        if self.wide:
+        if self.mode == 'wide':
             self.layout = QGridLayout()
             for i in range(self.num_col):
                 self.layout.setColumnStretch(i, 1)
