@@ -18,14 +18,14 @@ from proposalLabel import ProposalLabel
 
 
 class ProposalWindow(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, max_proposal_num=40):
         super().__init__()
         self.parent = parent
-        self.MAX_PROPOSAL_NUM = 40
-        self.proposal_num = 40
+        self.MAX_PROPOSAL_NUM = max_proposal_num
+        self.proposal_num = max_proposal_num
         self.num_col = 4
-        self.num_row = self.proposal_num // self.num_col
-        if self.proposal_num % self.num_col > 0:
+        self.num_row = self.MAX_PROPOSAL_NUM // self.num_col
+        if self.MAX_PROPOSAL_NUM % self.num_col > 0:
             self.num_row += 1
         self.proposal_labels = [ProposalLabel(self) for i in range(self.MAX_PROPOSAL_NUM)]
         print('init Proposal Window.')
@@ -58,7 +58,7 @@ class ProposalWindow(QWidget):
         self.update()
 
     def clean_seltected(self):
-        for i in range(self.proposal_num):
+        for i in range(self.MAX_PROPOSAL_NUM):
             self.proposal_labels[i].isSelected = False
             self.update()
 

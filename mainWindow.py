@@ -27,7 +27,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         # constant
-        self.LABELED_LIMIT = 50
+        self.LABELED_LIMIT = 20
         self.PROPOSAL_LIMIT = 40
 
         # variable
@@ -341,7 +341,7 @@ class MainWindow(QMainWindow):
         self.cast_scroll.setWidgetResizable(True)
 
         # proposal window
-        self.proposal_wid = ProposalWindow(self)
+        self.proposal_wid = ProposalWindow(self, 20)
         self.proposal_scroll = QScrollArea()
         self.proposal_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.proposal_scroll.setWidget(self.proposal_wid)
@@ -493,9 +493,9 @@ class MainWindow(QMainWindow):
                 # set button enable
                 self.error_button.setEnabled(True)
                 self.page_slider.setMaximum(self.total_pages-1)
-                self.page_num_label.setText('/{}'.format(self.total_pages-1))
+                self.page_num_label.setText('/{}'.format(self.total_pages))
                 self.page_slider.setValue(0)
-                self.page_idx_label.setText('0')
+                self.page_idx_label.setText('1')
                 self.page_slider.setEnabled(True)
                 self.page_idx_label.setEnabled(True)
                 self.update()
@@ -511,8 +511,9 @@ class MainWindow(QMainWindow):
             self.update_labeled()
             self.current_page = 0
             self.page_slider.setValue(0)
-            self.page_num_label.setText('/{}'.format(self.total_pages-1))
+            self.page_num_label.setText('/{}'.format(self.total_pages))
             self.page_slider.setMaximum(self.total_pages-1)
+            self.setFocus()
         else:
             if old_active_cast == self.active_cast:
                 self.active_cast = -1
@@ -551,6 +552,7 @@ class MainWindow(QMainWindow):
         self.status_label.setText(status_label_text)
 
     def update_labeled(self):
+        self.proposal_wid.clean_seltected()
         if self.active_cast == len(self.cast_list):
             proposal_result = self.get_labeled('others')
         elif self.active_cast == len(self.cast_list) + 1:
@@ -559,15 +561,21 @@ class MainWindow(QMainWindow):
             proposal_result = self.get_labeled(self.cast_list[self.active_cast])
         self.proposal_list = proposal_result['labeled']
         num_proposal = len(self.proposal_list)
-        self.total_pages = num_proposal // self.PROPOSAL_LIMIT
-        if num_proposal % self.PROPOSAL_LIMIT != 0:
+        self.total_pages = num_proposal // self.LABELED_LIMIT
+        if num_proposal % self.LABELED_LIMIT != 0:
             self.total_pages += 1
-        st = self.current_page * self.PROPOSAL_LIMIT
-        ed = min((self.current_page + 1) * self.PROPOSAL_LIMIT, num_proposal)
+        st = self.current_page * self.LABELED_LIMIT
+        ed = min((self.current_page + 1) * self.LABELED_LIMIT, num_proposal)
         img_list, bbox_list = self.proposal2info(
             self.proposal_list[st:ed], osp.join(self.package_dir, 'img'))
         self.proposal_wid.update_proposal(img_list, bbox_list)
         status_label_text = '已完成： {:d} / {:d}'.format(proposal_result['num_labeled'], proposal_result['num_proposal'])
+        self.page_slider.setMaximum(self.total_pages-1)
+        self.page_num_label.setText('/{}'.format(self.total_pages))
+        if self.current_page >= self.total_pages:
+            self.current_page = self.total_pages-1
+            self.page_slider.setValue(self.total_pages-1)
+            self.page_idx_label.setText('{}'.format(self.total_pages))
         self.status_label.setText(status_label_text)
 
     def update_frame(self):
@@ -656,7 +664,13 @@ class MainWindow(QMainWindow):
         self.update()
 
     def error_button_clicked(self):
-        # TODO
+        proposal_seltected_idx = self.proposal_wid.get_seletectd_idx()
+        uncertain_list = [self.proposal_list[x+self.current_page*self.LABELED_LIMIT] for x in proposal_seltected_idx]
+        self.update_assignment(None, [], [], [], [], uncertain_list, self.labeler)
+        self.update_cast()
+        self.update_labeled()
+        self.proposal_wid.clean_seltected()
+        self.proposal_scroll.verticalScrollBar().setValue(0)
         self.update()
 
     def slider_value_changed(self):
@@ -680,11 +694,11 @@ class MainWindow(QMainWindow):
     def page_slider_value_changed(self):
         self.current_page = self.page_slider.value()
         self.update_labeled()
-        self.page_idx_label.setText('{}'.format(self.page_slider.value()))
+        self.page_idx_label.setText('{}'.format(self.page_slider.value()+1))
         self.update()
 
     def page_idx_changed(self):
-        value = int(self.page_idx_label.text())
+        value = int(self.page_idx_label.text()) - 1
         if value >= 0 and value < self.total_pages:
             self.page_slider.setValue(value)
         else:
