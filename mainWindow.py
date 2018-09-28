@@ -288,6 +288,7 @@ class MainWindow(QMainWindow):
         # main widget
         self.main_wid = QWidget()
         self.setCentralWidget(self.main_wid)
+        self.main_wid.setFocusPolicy(Qt.StrongFocus)
 
         # buttons
         button_font = QFont('Roman times', 16)
@@ -491,8 +492,8 @@ class MainWindow(QMainWindow):
                 self.update_labeled()
                 # set button enable
                 self.error_button.setEnabled(True)
-                self.page_slider.setMaximum(self.total_pages)
-                self.page_num_label.setText('/{}'.format(self.total_pages))
+                self.page_slider.setMaximum(self.total_pages-1)
+                self.page_num_label.setText('/{}'.format(self.total_pages-1))
                 self.page_slider.setValue(0)
                 self.page_idx_label.setText('0')
                 self.page_slider.setEnabled(True)
@@ -508,6 +509,10 @@ class MainWindow(QMainWindow):
             self.update_proposal()
         elif self.mode == 'check':
             self.update_labeled()
+            self.current_page = 0
+            self.page_slider.setValue(0)
+            self.page_num_label.setText('/{}'.format(self.total_pages-1))
+            self.page_slider.setMaximum(self.total_pages-1)
         else:
             if old_active_cast == self.active_cast:
                 self.active_cast = -1
@@ -558,10 +563,10 @@ class MainWindow(QMainWindow):
         if num_proposal % self.PROPOSAL_LIMIT != 0:
             self.total_pages += 1
         st = self.current_page * self.PROPOSAL_LIMIT
-        ed = (self.current_page + 1) * self.PROPOSAL_LIMIT
+        ed = min((self.current_page + 1) * self.PROPOSAL_LIMIT, num_proposal)
         img_list, bbox_list = self.proposal2info(
-            self.proposal_list, osp.join(self.package_dir, 'img'))
-        self.proposal_wid.update_proposal(img_list[st:ed], bbox_list[st:ed])
+            self.proposal_list[st:ed], osp.join(self.package_dir, 'img'))
+        self.proposal_wid.update_proposal(img_list, bbox_list)
         status_label_text = '已完成： {:d} / {:d}'.format(proposal_result['num_labeled'], proposal_result['num_proposal'])
         self.status_label.setText(status_label_text)
 
